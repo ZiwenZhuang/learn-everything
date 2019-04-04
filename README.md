@@ -18,7 +18,9 @@ In the root directory, run `python baselines/run.py` with arguments needed.
 
 ## Installation
 
-We would recommand installing with anaconda environment and tensorflow installed. For more details, please refer to [here](https://github.com/openai/baselines#installation)
+- We would recommand installing with anaconda environment and tensorflow installed. For more details, please refer to [here](https://github.com/openai/baselines#installation)
+
+- Please install `tensorflow_pribability` and upgrate `tensorflow` via pip after basic baselines requirement is met, since our project needs that.
 
 
-Further readings, plase refer to [OpenAI baselines](https://github.com/openai/baselines)
+Further readings, please refer to [OpenAI baselines](https://github.com/openai/baselines)
