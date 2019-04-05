@@ -9,6 +9,7 @@ import tensorflow_probability as tfp
 tfd = tfp.distributions
 
 from gym import Env, error, spaces
+from baselines import logger
 
 class LogisticEnv(Env):
     ''' Trying to learn to optimize logistic regression problem
@@ -35,7 +36,7 @@ class LogisticEnv(Env):
         '''
         super(LogisticEnv, self).__init__()
         # a dictionary specifying configurations
-        # Don't put object in here
+        # It will not change later.
         self.configs = {
             # each type of eample will be drawn half of the total sample amount.
             "num_data_total": 100,
@@ -65,8 +66,12 @@ class LogisticEnv(Env):
         # setup formula
         self.vars = {}
         with tf.variable_scope("discriminator") as scope:
-            self.vars["w"] = tf.get_variable(name= "w", shape= (self.configs["x_dim"],))
-            self.vars["b"] = tf.get_variable(name= "b", shape= (1,))
+            # Assigning new value to tensorflow variable without place holder cost too much time,
+            # we store them in the self.vars dictionary as numpy array.
+            self.vars["w_val"] = None # not initialized
+            self.vars["b_val"] = None
+            self.vars["w"] = tf.placeholder(tf.float32, shape= (self.configs["x_dim"],), name= "w")
+            self.vars["b"] = tf.placeholder(tf.float32, shape= (1,), name= "b")
             # where 'None' indicates the number of data generated
             self.vars["x"] = tf.placeholder(tf.float32, shape= (self.configs["x_dim"], None), name= "x")
             self.vars["y"] = tf.placeholder(tf.float32, shape= (1, None), name= "y") # the true value
@@ -171,7 +176,8 @@ class LogisticEnv(Env):
 
         # initialize the weights
         # TODO: provide method to load and store weights at certain frequencies.
-        self.sess.run([self.vars["w"].initializer, self.vars["b"].initializer])
+        self.vars["w_val"] = np.random.rand(self.configs["x_dim"])
+        self.vars["b_val"] = np.random.rand(1)
 
         # according to the paper setting, add history objective value and history gradient as state space
         # This is the only place to construct a trajectory dictionary and add fields
@@ -181,7 +187,8 @@ class LogisticEnv(Env):
         self.trajectory["optimize_times"] = 0
 
         # calculate the gradient of 'w' and 'b' w.r.t the total loss
-        feed_dict = {self.vars["x"]: self.data[0], self.vars["y"]: self.data[1]}
+        feed_dict = {self.vars["w"]: self.vars["w_val"], self.vars["b"]: self.vars["b_val"], \
+                self.vars["x"]: self.data[0], self.vars["y"]: self.data[1]}
         w, b, self.trajectory["curr_grads"], self.trajectory["curr_loss"] = self.sess.run([
                 self.vars["w"],
                 self.vars["b"],
@@ -200,13 +207,13 @@ class LogisticEnv(Env):
         ''' Take in the parameter changes (w, b), where 'b' changes should be the last one.
             action: it has to be a nparray with 1-dimension
         '''
-        self.sess.run([
-            self.vars["w"].assign_add(action[:-1]), \
-            self.vars["b"].assign_add([action[-1]]) \
-        ])
+        # update weights and bias
+        self.vars["w_val"] += action[:-1]
+        self.vars["b_val"] += [action[-1]]
 
         # get new state
-        feed_dict = {self.vars["x"]: self.data[0], self.vars["y"]: self.data[1]}
+        feed_dict = {self.vars["w"]: self.vars["w_val"], self.vars["b"]: self.vars["b_val"], \
+                self.vars["x"]: self.data[0], self.vars["y"]: self.data[1]}
         w, b, gradients, loss = self.sess.run([
                 self.vars["w"],
                 self.vars["b"],
