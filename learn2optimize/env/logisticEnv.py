@@ -1,5 +1,6 @@
 #! python3
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pickle
 import os
@@ -65,7 +66,7 @@ class LogisticEnv(Env):
 
         # setup formula
         self.vars = {}
-        with tf.variable_scope("discriminator") as scope:
+        with tf.variable_scope("discriminator"):
             # Assigning new value to tensorflow variable without place holder cost too much time,
             # we store them in the self.vars dictionary as numpy array.
             self.vars["w_val"] = None # not initialized
@@ -80,7 +81,7 @@ class LogisticEnv(Env):
             # to deal with precision problem, sigmoid and log are put together in loss function part
             self.vars["weighted"] = (tf.matmul(w_reshape, self.vars["x"]) + self.vars["b"])
 
-        with tf.variable_scope("loss_func") as scope:
+        with tf.variable_scope("loss_func"):
             self.vars["losses"] = (self.vars["y"] * tf.math.log_sigmoid(self.vars["weighted"]) + \
                     (1 - self.vars["y"]) * tf.math.log_sigmoid(-self.vars["weighted"]))
                     # (1 - sigmoid(x)) == sigmoid(-x)
@@ -185,6 +186,8 @@ class LogisticEnv(Env):
         self.trajectory["obj_vals_changes"] = [np.zeros(1) for _ in range(self.configs["horizon"])]
         self.trajectory["gradient_history"] = [np.zeros((self.configs["x_dim"]+1)) for _ in range(self.configs["horizon"])]
         self.trajectory["optimize_times"] = 0
+        # a trajectory of losses, stored for plotting
+        self.trajectory["loss_history"] = np.zeros((self.configs["max_opt_times"],))
 
         # calculate the gradient of 'w' and 'b' w.r.t the total loss
         feed_dict = {self.vars["w"]: self.vars["w_val"], self.vars["b"]: self.vars["b_val"], \
@@ -194,8 +197,9 @@ class LogisticEnv(Env):
                 self.vars["b"],
                 self.vars["gradients"],
                 self.vars["loss"]], feed_dict= feed_dict)
-        w_grad = self.trajectory["curr_grads"][0] # just for notice
-        b_grad = self.trajectory["curr_grads"][1]
+        # w_grad = self.trajectory["curr_grads"][0] # just for notice
+        # b_grad = self.trajectory["curr_grads"][1]
+        self.trajectory["loss_history"][0] = self.trajectory["curr_loss"]
 
         # pack the observation an concatencate into numpy array
         to_cat = [w, b] + self.trajectory["obj_vals_changes"] + self.trajectory["gradient_history"]
@@ -226,6 +230,8 @@ class LogisticEnv(Env):
         self.trajectory["gradient_history"].append(np.concatenate(gradients))
         self.trajectory["gradient_history"].pop(0)
         self.trajectory["curr_grads"] = gradients
+        self.trajectory["loss_history"][self.trajectory["optimize_times"]] = loss
+        self.trajectory["optimize_times"] += 1
 
         # pack the observation and concatencate into numpy array
         to_cat = [w, b] + self.trajectory["obj_vals_changes"] + self.trajectory["gradient_history"]
@@ -245,3 +251,23 @@ class LogisticEnv(Env):
         # pack as Step object and return
         # reward returning reward[0] because openai API need a numpy number, not an array
         return observation, reward[0], done, info
+
+    def render(self, mode=None):
+        ''' Plot the loss (positive value) curve on window, and put the data into log file
+            Using this method indicates that the agent is formally optimizing this Logistic
+            problem, rather than learning to optimize.
+        '''
+        # check or add figure object to render the data (field only filled here)
+        if not hasattr(self, "fig"):
+            self.fig = plt.subplots()
+
+        x = np.arange(self.configs["max_opt_times"])
+        y = self.trajectory["loss_history"] # this is not a copy
+
+        self.fig[1].plot(x,y)
+        try:
+            plt.draw()
+            plt.pause(0.001) # delay so that you can see the loss curve
+            self.fig[1].clear()
+        except:
+            pass
