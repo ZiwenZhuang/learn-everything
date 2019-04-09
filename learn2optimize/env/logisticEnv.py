@@ -248,7 +248,6 @@ class LogisticEnv(Env):
         # pack some info
         info = {}
 
-        # pack as Step object and return
         # reward returning reward[0] because openai API need a numpy number, not an array
         return observation, reward[0], done, info
 
