@@ -57,6 +57,7 @@ class LogisticEnv(Env):
         # data generator of 2 multivariate Gaussians
         # (zero-th one for y == 0, another for y == 1)
         self.distributions = [self._rand_Gaussian_Dist(), self._rand_Gaussian_Dist()]
+        self.sample_data_ops = [dist.sample(self.configs["num_data_total"] // len(self.distributions)) for dist in self.distributions]
 
         # assign tf session
         if sess != None:
@@ -88,28 +89,14 @@ class LogisticEnv(Env):
             self.vars["loss"] = -tf.reduce_mean(self.vars["losses"], 1) + self.configs["lambda"] / 2 * tf.norm(self.vars["w"])
             self.vars["gradients"] = tf.gradients(self.vars["loss"], [self.vars["w"], self.vars["b"]])
 
-        # if nowhere to load the data, sample them
-        if self.configs["data_path"] is None or not os.path.isfile(self.configs["data_path"]):
-            # both of which will be concatencate into a matrix with (n) columns
-            X, Y = self._generate_data(self.configs["num_data_total"])
-            self.data = (X, Y)
-            print("(X,Y) data generated.")
-            # check again whether to store the data
-            if isinstance(self.configs["data_path"], str):
-                pickle.dump(self.data)
-                print("(X,Y) data stored at: %s" % self.configs["data_path"])
-        else:
-            with open(self.configs["data_path"]) as f:
-                self.data = pickle.load(f)
-                print("(X,Y) data loaded at: %s" % self.configs["data_path"])
-
         # reset/initialize the environment
         self.reset()
 
         print("Logistic regression initialization done.")
             
-    def _generate_data(self, n):
+    def _generate_data(self):
         ''' Generate 'n' number of data (with input and output) in total.
+            where 'n' is configured by maximum number of sample data
             Each type of data is evenly generated in terms of amount.
             return: (X, Y)
                 X: a (d by n) np array
@@ -117,11 +104,10 @@ class LogisticEnv(Env):
         '''
         X = []
         Y = []
-        for i, dist in enumerate(self.distributions):
-            num = n // len(self.distributions)
-            X_data = self.sess.run(dist.sample(num)) # calculate the data
-            X.append(X_data.transpose()) # transpose the array, so that each column is a vector
-            Y.append(np.array([[i for _ in range(num)]]))
+        for i, op in enumerate(self.sample_data_ops):
+            X_data = self.sess.run(op) # calculate the data
+            X.append(X_data.transpose()) # append a column vector
+            Y.append(np.array([[i for _ in range(X_data.shape[0])]]))
         # concatencate each array into matrix.
         X = np.concatenate(X, axis= 1)
         Y = np.concatenate(Y, axis= 1)
@@ -188,6 +174,9 @@ class LogisticEnv(Env):
         self.trajectory["optimize_times"] = 0
         # a trajectory of losses, stored for plotting
         self.trajectory["loss_history"] = np.zeros((self.configs["max_opt_times"],))
+
+        # re-generate (X,Y) data
+        self.data = self._generate_data()
 
         # calculate the gradient of 'w' and 'b' w.r.t the total loss
         feed_dict = {self.vars["w"]: self.vars["w_val"], self.vars["b"]: self.vars["b_val"], \
