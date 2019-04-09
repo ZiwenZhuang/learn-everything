@@ -118,7 +118,7 @@ class LogisticEnv(Env):
             random mean and covariance.
             It returns a distribution that can be sampled
         '''
-        mean = np.random.rand(self.configs["x_dim"]) * 10
+        mean = np.random.rand(self.configs["x_dim"])
         covar = np.random.rand(self.configs["x_dim"], self.configs["x_dim"])
         covar = np.dot(covar, covar.transpose()) #ensure that the random generated matrix is positive-semidefinite
 
@@ -257,7 +257,7 @@ class LogisticEnv(Env):
             self.fig[1].plot(x,y)
             try:
                 plt.draw()
-                plt.pause(0.1) # delay so that you can see the loss curve
+                plt.pause(1) # delay so that you can see the loss curve
                 self.fig[1].clear()
             except:
                 print("Exception ocurred in rendering, exit(0)...")
