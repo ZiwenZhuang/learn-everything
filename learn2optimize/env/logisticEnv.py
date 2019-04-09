@@ -42,7 +42,7 @@ class LogisticEnv(Env):
             # each type of eample will be drawn half of the total sample amount.
             "num_data_total": 100,
             # the maximum number of times the agent is allowed to optimize this problem.
-            "max_opt_times": 40,
+            "max_opt_times": 100,
             # assuming the value is x, the number of parameters in w and d will be x + 1
             "x_dim": 3,
             "lambda": tf.constant(0.0005), # for l-2 regularization according to the paper
@@ -86,7 +86,7 @@ class LogisticEnv(Env):
             self.vars["losses"] = (self.vars["y"] * tf.math.log_sigmoid(self.vars["weighted"]) + \
                     (1 - self.vars["y"]) * tf.math.log_sigmoid(-self.vars["weighted"]))
                     # (1 - sigmoid(x)) == sigmoid(-x)
-            self.vars["loss"] = -tf.reduce_mean(self.vars["losses"], 1) + self.configs["lambda"] / 2 * tf.norm(self.vars["w"])
+            self.vars["loss"] = -tf.reduce_mean(self.vars["losses"], 1) + self.configs["lambda"] / 2 * tf.square(tf.norm(self.vars["w"]))
             self.vars["gradients"] = tf.gradients(self.vars["loss"], [self.vars["w"], self.vars["b"]])
 
         # reset/initialize the environment
@@ -118,7 +118,7 @@ class LogisticEnv(Env):
             random mean and covariance.
             It returns a distribution that can be sampled
         '''
-        mean = np.random.rand(self.configs["x_dim"])
+        mean = np.random.rand(self.configs["x_dim"]) * 10
         covar = np.random.rand(self.configs["x_dim"], self.configs["x_dim"])
         covar = np.dot(covar, covar.transpose()) #ensure that the random generated matrix is positive-semidefinite
 
@@ -252,10 +252,14 @@ class LogisticEnv(Env):
         x = np.arange(self.configs["max_opt_times"])
         y = self.trajectory["loss_history"] # this is not a copy
 
-        self.fig[1].plot(x,y)
-        try:
-            plt.draw()
-            plt.pause(0.001) # delay so that you can see the loss curve
-            self.fig[1].clear()
-        except:
-            pass
+        # to save time, not plot every time, only when maximum optimization time is reached
+        if (self.trajectory["optimize_times"] == self.configs["max_opt_times"] - 1):
+            self.fig[1].plot(x,y)
+            try:
+                plt.draw()
+                plt.pause(0.1) # delay so that you can see the loss curve
+                self.fig[1].clear()
+            except:
+                print("Exception ocurred in rendering, exit(0)...")
+                exit(0)
+

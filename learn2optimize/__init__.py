@@ -15,6 +15,6 @@ from .env.logisticEnv import LogisticEnv
 register(
     id='Logistic-v0',
     entry_point='learn2optimize.env.logisticEnv:LogisticEnv',
-    max_episode_steps=40,
+    max_episode_steps=1000,
 )
 
