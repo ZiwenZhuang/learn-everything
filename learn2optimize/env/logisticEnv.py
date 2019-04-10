@@ -236,7 +236,9 @@ class LogisticEnv(Env):
         reward = -loss
 
         # determine if the environment is done
-        done = (self.trajectory["optimize_times"] >= self.configs["max_opt_times"])
+        if (self.trajectory["optimize_times"] >= self.configs["max_opt_times"]):
+            self.trajectory["optimize_times"] = 0
+        done = (loss <= 0.7)
         if done: # TODO
             self.reset()
 
