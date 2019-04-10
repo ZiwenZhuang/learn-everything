@@ -41,6 +41,8 @@ class LogisticEnv(Env):
         self.configs = {
             # each type of eample will be drawn half of the total sample amount.
             "num_data_total": 100,
+            # the number of problems (each set of (X,Y) data is a different problem). (different objective functions)
+            "problem_num": 90,
             # the maximum number of times the agent is allowed to optimize this problem.
             "max_opt_times": 100,
             # assuming the value is x, the number of parameters in w and d will be x + 1
@@ -88,6 +90,10 @@ class LogisticEnv(Env):
                     # (1 - sigmoid(x)) == sigmoid(-x)
             self.vars["loss"] = -tf.reduce_mean(self.vars["losses"], 1) + self.configs["lambda"] / 2 * tf.square(tf.norm(self.vars["w"]))
             self.vars["gradients"] = tf.gradients(self.vars["loss"], [self.vars["w"], self.vars["b"]])
+
+        # generate different set of data first, then choose one when reset
+        self.all_data = [self._generate_data() for _ in range(self.configs["problem_num"])]
+        self.data_ind = 0 # using index to retrive data from all collection
 
         # reset/initialize the environment
         self.reset()
@@ -176,11 +182,11 @@ class LogisticEnv(Env):
         self.trajectory["loss_history"] = np.zeros((self.configs["max_opt_times"],))
 
         # re-generate (X,Y) data
-        self.data = self._generate_data()
+        self.data_ind  = (self.data_ind + 1) % len(self.all_data)
 
         # calculate the gradient of 'w' and 'b' w.r.t the total loss
         feed_dict = {self.vars["w"]: self.vars["w_val"], self.vars["b"]: self.vars["b_val"], \
-                self.vars["x"]: self.data[0], self.vars["y"]: self.data[1]}
+                self.vars["x"]: self.all_data[self.data_ind][0], self.vars["y"]: self.all_data[self.data_ind][1]}
         w, b, self.trajectory["curr_grads"], self.trajectory["curr_loss"] = self.sess.run([
                 self.vars["w"],
                 self.vars["b"],
@@ -206,7 +212,7 @@ class LogisticEnv(Env):
 
         # get new state
         feed_dict = {self.vars["w"]: self.vars["w_val"], self.vars["b"]: self.vars["b_val"], \
-                self.vars["x"]: self.data[0], self.vars["y"]: self.data[1]}
+                self.vars["x"]: self.all_data[self.data_ind][0], self.vars["y"]: self.all_data[self.data_ind][1]}
         w, b, gradients, loss = self.sess.run([
                 self.vars["w"],
                 self.vars["b"],
