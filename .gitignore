@@ -34,3 +34,8 @@ src
 .cache
 
 MUJOCO_LOG.TXT
+
+.vscode
+=1.13.1
+learn2optimize/weights
+
