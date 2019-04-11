@@ -44,7 +44,7 @@ class LogisticEnv(Env):
             # the number of problems (each set of (X,Y) data is a different problem). (different objective functions)
             "problem_num": 90,
             # the maximum number of times the agent is allowed to optimize this problem.
-            "max_opt_times": 100,
+            "max_opt_times": 1000,
             # assuming the value is x, the number of parameters in w and d will be x + 1
             "x_dim": 3,
             "lambda": tf.constant(0.0005), # for l-2 regularization according to the paper
@@ -88,7 +88,7 @@ class LogisticEnv(Env):
             self.vars["losses"] = (self.vars["y"] * tf.math.log_sigmoid(self.vars["weighted"]) + \
                     (1 - self.vars["y"]) * tf.math.log_sigmoid(-self.vars["weighted"]))
                     # (1 - sigmoid(x)) == sigmoid(-x)
-            self.vars["loss"] = -tf.reduce_mean(self.vars["losses"], 1) + self.configs["lambda"] / 2 * tf.square(tf.norm(self.vars["w"]))
+            self.vars["loss"] = -tf.reduce_mean(self.vars["losses"], 1) + (self.configs["lambda"] / 2 * tf.square(tf.norm(self.vars["w"])))
             self.vars["gradients"] = tf.gradients(self.vars["loss"], [self.vars["w"], self.vars["b"]])
 
         # generate different set of data first, then choose one when reset
@@ -194,7 +194,9 @@ class LogisticEnv(Env):
                 self.vars["loss"]], feed_dict= feed_dict)
         # w_grad = self.trajectory["curr_grads"][0] # just for notice
         # b_grad = self.trajectory["curr_grads"][1]
+        # setup history for recording, not for optimizer (agent)
         self.trajectory["loss_history"][0] = self.trajectory["curr_loss"]
+        self.trajectory["initial_loss"] = self.trajectory["curr_loss"]
 
         # pack the observation an concatencate into numpy array
         to_cat = [w, b] + self.trajectory["obj_vals_changes"] + self.trajectory["gradient_history"]
@@ -236,9 +238,7 @@ class LogisticEnv(Env):
         reward = -loss
 
         # determine if the environment is done
-        if (self.trajectory["optimize_times"] >= self.configs["max_opt_times"]):
-            self.trajectory["optimize_times"] = 0
-        done = (loss <= 0.7)
+        done = (self.trajectory["curr_loss"] <= 0.3 * self.trajectory["initial_loss"]) or (self.trajectory["optimize_times"] >= self.configs["max_opt_times"])
         if done: # TODO
             self.reset()
 
