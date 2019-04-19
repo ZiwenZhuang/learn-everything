@@ -30,12 +30,23 @@ class GradientDescent():
                 (n) is the dimension of the action space.
         '''
         self.time_step_cnt += 1
-        return observation[-4:] / (self.time_step_cnt)
+        return - observation[0,-4:], None, None, None
+
+    def save(self, **kwargs):
+        ''' This a is hand-coded policy, nothing to be saved.
+        '''
+        pass
+    def load(self, **kwargs):
+        ''' This a is hand-coded policy, nothing to be loaded.
+        '''
+        pass
         
 
 def learn(*,
         network,
         env,
+        total_timesteps,
+        seed=None,
         **network_kwargs,
         ):
 
@@ -45,5 +56,5 @@ def learn(*,
     ac_space = env.action_space
 
     # initialize the gradient descent policy directly
-        
+    return GradientDescent(ob_space, ac_space)
 
