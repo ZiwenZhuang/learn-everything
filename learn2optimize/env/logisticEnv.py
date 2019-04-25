@@ -39,10 +39,10 @@ class LogisticEnv(Env):
         # a dictionary specifying configurations
         # It will not change later.
         self.configs = {
-            # each type of eample will be drawn half of the total sample amount.
-            "num_data_total": 100,
             # the number of problems (each set of (X,Y) data is a different problem). (different objective functions)
             "problem_num": 90,
+            # each type of eample will be drawn half of the total sample amount.
+            "num_data_total": 100,
             # the maximum number of times the agent is allowed to optimize this problem.
             "max_opt_times": 1000,
             # assuming the value is x, the number of parameters in w and d will be x + 1
@@ -128,7 +128,7 @@ class LogisticEnv(Env):
         covar = np.random.rand(self.configs["x_dim"], self.configs["x_dim"])
         covar = np.dot(covar, covar.transpose()) #ensure that the random generated matrix is positive-semidefinite
 
-        # generate the distself.vars["r"]ibution
+        # generate the distribution which is not an operation
         return tfd.MultivariateNormalFullCovariance(
                 loc= mean,
                 covariance_matrix= covar
