@@ -92,7 +92,7 @@ class LogisticEnv(Env):
             self.vars["gradients"] = tf.gradients(self.vars["loss"], [self.vars["w"], self.vars["b"]])
 
         # generate different set of data first, then choose one when reset
-        self.all_data = [self._generate_data() for _ in range(self.configs["problem_num"])]
+        self.all_data = [self._generate_data(np.ones([self.configs["x_dim"]]) * (5*i+1)) for i in range(self.configs["problem_num"])]
         self.data_ind = 0 # using index to retrive data from all collection
 
         # reset/initialize the environment
@@ -119,14 +119,16 @@ class LogisticEnv(Env):
         Y = np.concatenate(Y, axis= 1)
         return (X, Y)
         
-    def _rand_Gaussian_Dist(self):
+    def _rand_Gaussian_Dist(self, mean= None, covar= None):
         ''' The method generate a multivariate gaussian distribution with 
             random mean and covariance.
             It returns a distribution that can be sampled
         '''
-        mean = np.random.rand(self.configs["x_dim"])
-        covar = np.random.rand(self.configs["x_dim"], self.configs["x_dim"])
-        covar = np.dot(covar, covar.transpose()) #ensure that the random generated matrix is positive-semidefinite
+        if not mean:
+            mean = np.random.rand(self.configs["x_dim"])
+        if not covar:
+            covar = np.random.rand(self.configs["x_dim"], self.configs["x_dim"])
+            covar = np.dot(covar, covar.transpose()) #ensure that the random generated matrix is positive-semidefinite
 
         # generate the distribution which is not an operation
         return tfd.MultivariateNormalFullCovariance(
@@ -238,7 +240,8 @@ class LogisticEnv(Env):
         reward = -loss
 
         # determine if the environment is done
-        done = (self.trajectory["curr_loss"] <= 0.65) or (self.trajectory["optimize_times"] >= self.configs["max_opt_times"])
+        # done = (self.trajectory["curr_loss"] <= 0.65) or (self.trajectory["optimize_times"] >= self.configs["max_opt_times"])
+        done = (self.trajectory["curr_loss"] <= 0.3 * self.trajectory["initial_loss"]) or (self.trajectory["optimize_times"] >= self.configs["max_opt_times"])
         if done: # TODO
             self.reset()
 
