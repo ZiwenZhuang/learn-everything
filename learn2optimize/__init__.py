@@ -11,10 +11,17 @@ from gym.envs.registration import register
 # message if mujoco is not installed correctly
 
 from .env.logisticEnv import LogisticEnv
+from .env.robustLinearReg import RobustLinearEnv
 
 register(
     id='Logistic-v0',
     entry_point='learn2optimize.env.logisticEnv:LogisticEnv',
+    max_episode_steps=1000,
+)
+
+register(
+    id='RobustLinear-v0',
+    entry_point='learn2optimize.env.robustLinearReg:RobustLinearEnv',
     max_episode_steps=1000,
 )
 

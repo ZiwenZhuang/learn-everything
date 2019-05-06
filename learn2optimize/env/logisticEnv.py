@@ -39,12 +39,12 @@ class LogisticEnv(Env):
         # a dictionary specifying configurations
         # It will not change later.
         self.configs = {
-            # each type of eample will be drawn half of the total sample amount.
-            "num_data_total": 100,
             # the number of problems (each set of (X,Y) data is a different problem). (different objective functions)
             "problem_num": 90,
+            # each type of eample will be drawn half of the total sample amount.
+            "num_data_total": 100,
             # the maximum number of times the agent is allowed to optimize this problem.
-            "max_opt_times": 100,
+            "max_opt_times": 1000,
             # assuming the value is x, the number of parameters in w and d will be x + 1
             "x_dim": 3,
             "lambda": tf.constant(0.0005), # for l-2 regularization according to the paper
@@ -88,11 +88,11 @@ class LogisticEnv(Env):
             self.vars["losses"] = (self.vars["y"] * tf.math.log_sigmoid(self.vars["weighted"]) + \
                     (1 - self.vars["y"]) * tf.math.log_sigmoid(-self.vars["weighted"]))
                     # (1 - sigmoid(x)) == sigmoid(-x)
-            self.vars["loss"] = -tf.reduce_mean(self.vars["losses"], 1) + self.configs["lambda"] / 2 * tf.square(tf.norm(self.vars["w"]))
+            self.vars["loss"] = -tf.reduce_mean(self.vars["losses"], 1) + (self.configs["lambda"] / 2 * tf.square(tf.norm(self.vars["w"])))
             self.vars["gradients"] = tf.gradients(self.vars["loss"], [self.vars["w"], self.vars["b"]])
 
         # generate different set of data first, then choose one when reset
-        self.all_data = [self._generate_data() for _ in range(self.configs["problem_num"])]
+        self.all_data = [self._generate_data(np.ones([self.configs["x_dim"]]) * (5*i+1)) for i in range(self.configs["problem_num"])]
         self.data_ind = 0 # using index to retrive data from all collection
 
         # reset/initialize the environment
@@ -119,16 +119,18 @@ class LogisticEnv(Env):
         Y = np.concatenate(Y, axis= 1)
         return (X, Y)
         
-    def _rand_Gaussian_Dist(self):
+    def _rand_Gaussian_Dist(self, mean= None, covar= None):
         ''' The method generate a multivariate gaussian distribution with 
             random mean and covariance.
             It returns a distribution that can be sampled
         '''
-        mean = np.random.rand(self.configs["x_dim"])
-        covar = np.random.rand(self.configs["x_dim"], self.configs["x_dim"])
-        covar = np.dot(covar, covar.transpose()) #ensure that the random generated matrix is positive-semidefinite
+        if not mean:
+            mean = np.random.rand(self.configs["x_dim"])
+        if not covar:
+            covar = np.random.rand(self.configs["x_dim"], self.configs["x_dim"])
+            covar = np.dot(covar, covar.transpose()) #ensure that the random generated matrix is positive-semidefinite
 
-        # generate the distself.vars["r"]ibution
+        # generate the distribution which is not an operation
         return tfd.MultivariateNormalFullCovariance(
                 loc= mean,
                 covariance_matrix= covar
@@ -194,7 +196,9 @@ class LogisticEnv(Env):
                 self.vars["loss"]], feed_dict= feed_dict)
         # w_grad = self.trajectory["curr_grads"][0] # just for notice
         # b_grad = self.trajectory["curr_grads"][1]
+        # setup history for recording, not for optimizer (agent)
         self.trajectory["loss_history"][0] = self.trajectory["curr_loss"]
+        self.trajectory["initial_loss"] = self.trajectory["curr_loss"]
 
         # pack the observation an concatencate into numpy array
         to_cat = [w, b] + self.trajectory["obj_vals_changes"] + self.trajectory["gradient_history"]
@@ -236,7 +240,8 @@ class LogisticEnv(Env):
         reward = -loss
 
         # determine if the environment is done
-        done = (self.trajectory["optimize_times"] >= self.configs["max_opt_times"])
+        # done = (self.trajectory["curr_loss"] <= 0.65) or (self.trajectory["optimize_times"] >= self.configs["max_opt_times"])
+        done = (self.trajectory["curr_loss"] <= 0.3 * self.trajectory["initial_loss"]) or (self.trajectory["optimize_times"] >= self.configs["max_opt_times"])
         if done: # TODO
             self.reset()
 

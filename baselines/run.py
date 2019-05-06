@@ -160,7 +160,7 @@ def get_alg_module(alg, submodule=None):
         alg_module = import_module('.'.join(['baselines', alg, submodule]))
     except ImportError:
         # then from rl_algs
-        alg_module = import_module('.'.join(['rl_' + 'algs', alg, submodule]))
+        alg_module = import_module('.'.join(['learn2optimize', 'alg', alg, submodule]))
 
     return alg_module
 
